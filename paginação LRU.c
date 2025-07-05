@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define TAM_MEM 3
+#define TAM_MEM 4
 #define TAM_ACESSOS 12
 
 int acessos[] = {1, 2, 3, 2, 4, 1, 5, 2, 1, 2, 3, 4};
@@ -118,13 +118,13 @@ void menu() {
 
         switch (opcao) {
             case 1:
-                fifo(8);     // tempo por substituição em ms
+                fifo(8);     // FIFO: menor tempo
                 break;
             case 2:
-                lru(12);     // tempo por substituição mais alto
+                lru(12);     // LRU: maior tempo
                 break;
             case 3:
-                clock_alg(10); // médio custo
+                clock_alg(10); // CLOCK: tempo médio
                 break;
             case 4:
                 printf("Encerrando...\n");
