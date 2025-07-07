@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simulador de Paginação por Tempo</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    #memoria { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+    .quadro {
+      width: 50px; height: 50px; border: 2px solid #999;
+      margin: 5px; font-size: 18px; line-height: 50px;
+      background-color: #eee; transition: background-color 0.4s ease;
+    }
+    .hit { background-color: lightgreen !important; }
+    .fault { background-color: tomato !important; }
+    #info { margin-top: 20px; }
+    button, select {
+      margin: 10px; padding: 10px 20px; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Simulador de Paginação (LRU / FIFO / CLOCK)</h1>
+
+  <select id="algoritmo">
+    <option value="lru">LRU (12ms)</option>
+    <option value="fifo">FIFO (8ms)</option>
+    <option value="clock">CLOCK (10ms)</option>
+  </select>
+
+  <button onclick="iniciarSimulacao()">Iniciar Simulação</button>
+  <button onclick="resetar()">Resetar</button>
+
+  <div id="memoria"></div>
+
+  <div id="info">
+    <p><strong>Acesso Atual:</strong> <span id="acesso">-</span></p>
+    <p><strong>Page Faults:</strong> <span id="faults">0</span></p>
+    <p><strong>Tempo Total:</strong> <span id="tempo">0</span> ms</p>
+  </div>
+
+  <script>
+    const TAM_MEM = 5;
+    const TOTAL_ACESSOS = 25;
+    const tempos = { lru: 12, fifo: 8, clock: 10 };
+
+    let acessos = [];
+    let memoria = Array(TAM_MEM).fill(null);
+    let uso = Array(TAM_MEM).fill(-1); // para LRU
+    let ref = Array(TAM_MEM).fill(0);  // para CLOCK
+    let ponteiro = 0;
+    let passo = 0;
+    let pageFaults = 0;
+    let tempoTotal = 0;
+
+    function gerarAcessos() {
+      acessos = [];
+      for (let i = 0; i < TOTAL_ACESSOS; i++) {
+        acessos.push(Math.floor(Math.random() * 10) + 1);
+      }
+    }
+
+    function desenharMemoria(destacar = -1, foiFault = false) {
+      const memDiv = document.getElementById("memoria");
+      memDiv.innerHTML = "";
+      for (let i = 0; i < TAM_MEM; i++) {
+        const div = document.createElement("div");
+        div.className = "quadro";
+        div.textContent = memoria[i] ?? "-";
+        if (i === destacar) div.classList.add(foiFault ? "fault" : "hit");
+        memDiv.appendChild(div);
+      }
+    }
+
+    function simularLRU(pagina, tempoAtual) {
+      let pos = memoria.indexOf(pagina);
+      if (pos !== -1) {
+        uso[pos] = tempoAtual;
+        desenharMemoria(pos, false);
+      } else {
+        let index = uso.indexOf(Math.min(...uso));
+        memoria[index] = pagina;
+        uso[index] = tempoAtual;
+        desenharMemoria(index, true);
+        pageFaults++;
+        tempoTotal += tempos.lru;
+      }
+    }
+
+    function simularFIFO(pagina) {
+      let pos = memoria.indexOf(pagina);
+      if (pos !== -1) {
+        desenharMemoria(pos, false);
+      } else {
+        let index = passo % TAM_MEM;
+        memoria[index] = pagina;
+        desenharMemoria(index, true);
+        pageFaults++;
+        tempoTotal += tempos.fifo;
+      }
+    }
+
+    function simularCLOCK(pagina) {
+      let pos = memoria.indexOf(pagina);
+      if (pos !== -1) {
+        ref[memoria.indexOf(pagina)] = 1;
+        desenharMemoria(pos, false);
+      } else {
+        while (ref[ponteiro] === 1) {
+          ref[ponteiro] = 0;
+          ponteiro = (ponteiro + 1) % TAM_MEM;
+        }
+        memoria[ponteiro] = pagina;
+        ref[ponteiro] = 1;
+        desenharMemoria(ponteiro, true);
+        ponteiro = (ponteiro + 1) % TAM_MEM;
+        pageFaults++;
+        tempoTotal += tempos.clock;
+      }
+    }
+
+    async function simularPasso() {
+      if (passo >= acessos.length) return;
+      const pagina = acessos[passo];
+      const algoritmo = document.getElementById("algoritmo").value;
+      document.getElementById("acesso").textContent = pagina;
+
+      switch (algoritmo) {
+        case "lru": simularLRU(pagina, passo); break;
+        case "fifo": simularFIFO(pagina); break;
+        case "clock": simularCLOCK(pagina); break;
+      }
+
+      document.getElementById("faults").textContent = pageFaults;
+      document.getElementById("tempo").textContent = tempoTotal;
+      passo++;
+      if (passo < acessos.length) {
+        setTimeout(simularPasso, 500);
+      }
+    }
+
+    function iniciarSimulacao() {
+      gerarAcessos();
+      passo = 0;
+      pageFaults = 0;
+      tempoTotal = 0;
+      ponteiro = 0;
+      memoria = Array(TAM_MEM).fill(null);
+      uso = Array(TAM_MEM).fill(-1);
+      ref = Array(TAM_MEM).fill(0);
+      document.getElementById("faults").textContent = "0";
+      document.getElementById("tempo").textContent = "0";
+      desenharMemoria();
+      simularPasso();
+    }
+
+    function resetar() {
+      passo = 0;
+      pageFaults = 0;
+      tempoTotal = 0;
+      ponteiro = 0;
+      memoria = Array(TAM_MEM).fill(null);
+      uso = Array(TAM_MEM).fill(-1);
+      ref = Array(TAM_MEM).fill(0);
+      document.getElementById("acesso").textContent = "-";
+      document.getElementById("faults").textContent = "0";
+      document.getElementById("tempo").textContent = "0";
+      desenharMemoria();
+    }
+
+    desenharMemoria();
+  </script>
+
+</body>
+</html>
